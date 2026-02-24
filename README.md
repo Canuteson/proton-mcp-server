@@ -1,15 +1,30 @@
 # proton-mcp
 
-An MCP server that exposes your Proton Mail calendars to Claude Desktop via ICS secret links.
+An MCP server that gives LLM tools including Claude Desktop and LM Studio access to your Proton Mail calendars via ICS secret links.
 
-## Configure Calendars
+## Setup
 
-Calendar URLs are provided via environment variables and never hard-coded.
+### 1. Clone and install
 
-### Option 1 — JSON array (recommended for multiple calendars)
+```bash
+git clone https://github.com/YOUR_USERNAME/proton-mcp.git
+cd proton-mcp
+npm install
+npm run build
+```
 
-Set `PROTON_CALENDARS` to a JSON array of `{ name, url }` objects. Get each URL from
-**Proton Calendar → Settings → Other calendars → Link for viewing**.
+### 2. Get your Proton Calendar URLs
+
+In Proton Calendar, go to **Settings → Other calendars → Link for viewing** for each calendar you want to expose. Each URL is a secret ICS download link — treat it like a password.
+
+### 3. Configure Claude Desktop
+
+Open (or create) your Claude Desktop config file:
+
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
+
+Add the following, replacing the path and calendar URLs:
 
 ```json
 {
@@ -25,7 +40,32 @@ Set `PROTON_CALENDARS` to a JSON array of `{ name, url }` objects. Get each URL 
 }
 ```
 
-### Option 2 — individual env vars per calendar
+Use the full absolute path to the `dist/index.js` file in the cloned repo.
+
+### 4. Restart Claude Desktop
+
+Fully quit and relaunch Claude Desktop. The `proton-mcp` server will connect automatically on startup.
+
+---
+
+## Using with LM Studio (Qwen3, Llama 3.3, etc.)
+
+No changes to the server are needed — MCP is model-agnostic. LM Studio uses the same config format as Claude Desktop, just in a different file.
+
+**Requirements:** LM Studio 0.3.17 or later.
+
+### 1. Choose a model that supports tool calling
+
+Not all local models handle tool calls reliably. These work well:
+
+- **Qwen3** (any size) — strong tool calling support, recommended
+- **Llama 3.3 70B** — good tool calling support
+
+Download your preferred model in LM Studio before continuing.
+
+### 2. Edit `mcp.json`
+
+Open LM Studio, go to the **Program** tab in the right sidebar, and click **Edit mcp.json**. Add the `proton-mcp` entry (same `command`/`args`/`env` shape as the Claude Desktop config):
 
 ```json
 {
@@ -34,167 +74,47 @@ Set `PROTON_CALENDARS` to a JSON array of `{ name, url }` objects. Get each URL 
       "command": "node",
       "args": ["/Full/path/to/project/proton-mcp/dist/index.js"],
       "env": {
-        "CALENDAR_FAMILY_URL": "https://calendar.proton.me/api/calendar/v1/url/...",
-        "CALENDAR_WORK_URL": "https://calendar.proton.me/api/calendar/v1/url/..."
+        "PROTON_CALENDARS": "[{\"name\":\"Family\",\"url\":\"https://calendar.proton.me/api/calendar/v1/url/...\"},{\"name\":\"Work\",\"url\":\"https://calendar.proton.me/api/calendar/v1/url/...\"}]"
       }
     }
   }
 }
 ```
 
-Claude Desktop config file location:
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
+LM Studio auto-reloads `mcp.json` on save. The file lives at:
 
-## Using the Calendar Tool
+- **macOS/Linux**: `~/.lmstudio/mcp.json`
+- **Windows**: `%USERPROFILE%\.lmstudio\mcp.json`
 
-Ask Claude things like:
-- *"List my available calendars"*
-- *"Fetch all events for the following week from my Family calendar"*
-- *"What's on my Work calendar this Monday through Friday?"*
+### 3. Tips for reliable tool calling
 
-## Quick Start
+- Set model **temperature to 0.1** or lower — higher values cause malformed tool call JSON
+- Set **context length to at least 4096**
+- LM Studio will show a confirmation dialog the first time a tool is called; you can choose to always allow it
 
-```bash
-# Install dependencies
-npm install
+---
 
-# Build the project
-npm run build
+## Usage
+
+Ask things like:
+
+- *"What calendars do I have?"*
+- *"What's on my Work calendar this week?"*
+- *"Show me all Family events for the next two weeks"*
+
+## Calendar env var formats
+
+**Option 1 — JSON array (recommended):**
 
 ```
-
-## Project Structure
-
-```
-proton-mcp/
-├── src/
-│   ├── tools/        # MCP Tools
-│   │   └── ExampleTool.ts
-│   └── index.ts      # Server entry point
-├── package.json
-└── tsconfig.json
+PROTON_CALENDARS='[{"name":"Family","url":"https://..."},{"name":"Work","url":"https://..."}]'
 ```
 
-## Adding Components
+**Option 2 — individual vars per calendar:**
 
-The project comes with an example tool in `src/tools/ExampleTool.ts`. You can add more tools using the CLI:
-
-```bash
-# Add a new tool
-mcp add tool my-tool
-
-# Example tools you might create:
-mcp add tool data-processor
-mcp add tool api-client
-mcp add tool file-handler
+```
+CALENDAR_FAMILY_URL=https://...
+CALENDAR_WORK_URL=https://...
 ```
 
-## Tool Development
-
-Example tool structure:
-
-```typescript
-import { MCPTool } from "mcp-framework";
-import { z } from "zod";
-
-interface MyToolInput {
-  message: string;
-}
-
-class MyTool extends MCPTool<MyToolInput> {
-  name = "my_tool";
-  description = "Describes what your tool does";
-
-  schema = {
-    message: {
-      type: z.string(),
-      description: "Description of this input parameter",
-    },
-  };
-
-  async execute(input: MyToolInput) {
-    // Your tool logic here
-    return `Processed: ${input.message}`;
-  }
-}
-
-export default MyTool;
-```
-
-## Publishing to npm
-
-1. Update your package.json:
-   - Ensure `name` is unique and follows npm naming conventions
-   - Set appropriate `version`
-   - Add `description`, `author`, `license`, etc.
-   - Check `bin` points to the correct entry file
-
-2. Build and test locally:
-   ```bash
-   npm run build
-   npm link
-   proton-mcp  # Test your CLI locally
-   ```
-
-3. Login to npm (create account if necessary):
-   ```bash
-   npm login
-   ```
-
-4. Publish your package:
-   ```bash
-   npm publish
-   ```
-
-After publishing, users can add it to their claude desktop client (read below) or run it with npx
-```
-
-## Using with Claude Desktop
-
-### Local Development
-
-Add this configuration to your Claude Desktop config file:
-
-**MacOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "proton-mcp": {
-      "command": "node",
-      "args":["/absolute/path/to/proton-mcp/dist/index.js"]
-    }
-  }
-}
-```
-
-### After Publishing
-
-Add this configuration to your Claude Desktop config file:
-
-**MacOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "proton-mcp": {
-      "command": "npx",
-      "args": ["proton-mcp"]
-    }
-  }
-}
-```
-
-## Building and Testing
-
-1. Make changes to your tools
-2. Run `npm run build` to compile
-3. The server will automatically load your tools on startup
-
-## Learn More
-
-- [MCP Framework Github](https://github.com/QuantGeekDev/mcp-framework)
-- [MCP Framework Docs](https://mcp-framework.com)
+With Option 2, the `CALENDAR_<NAME>_URL` variables are auto-discovered and `NAME` is used as the calendar name (underscores converted to spaces).
