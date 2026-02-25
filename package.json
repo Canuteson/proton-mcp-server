@@ -17,6 +17,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "imapflow": "^1.2.10",
     "mcp-framework": "^0.2.2"
   },
   "devDependencies": {
