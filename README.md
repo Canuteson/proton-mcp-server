@@ -1,6 +1,6 @@
 # proton-mcp
 
-An MCP server that gives LLM tools including Claude Desktop and LM Studio access to your Proton Mail calendars via ICS secret links.
+An MCP server that gives LLM tools including Claude Desktop and LM Studio access to your Proton Mail calendars and email via Proton Bridge.
 
 ## Setup
 
@@ -17,14 +17,25 @@ npm run build
 
 In Proton Calendar, go to **Settings → Other calendars → Link for viewing** for each calendar you want to expose. Each URL is a secret ICS download link — treat it like a password.
 
-### 3. Configure Claude Desktop
+### 3. Install and configure Proton Bridge (for email)
+
+[Proton Bridge](https://proton.me/mail/bridge) is a local proxy that exposes your Proton Mail account over standard IMAP and SMTP. It must be running whenever the MCP server needs to read or send email.
+
+After installing and signing in to Proton Bridge, find the IMAP credentials in the Bridge app under **Settings → Mailbox configuration**. You will need:
+
+- **IMAP username** — your full Proton Mail address (e.g. `you@proton.me`)
+- **IMAP password** — the Bridge-generated password (different from your Proton account password)
+
+The Bridge runs locally on `127.0.0.1:1143` (IMAP) and `127.0.0.1:1025` (SMTP) by default; these are already the MCP server defaults.
+
+### 4. Configure Claude Desktop
 
 Open (or create) your Claude Desktop config file:
 
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%/Claude/claude_desktop_config.json`
 
-Add the following, replacing the path and calendar URLs:
+Add the following, replacing the path, calendar URLs, and Bridge credentials:
 
 ```json
 {
@@ -33,7 +44,9 @@ Add the following, replacing the path and calendar URLs:
       "command": "node",
       "args": ["/Full/path/to/project/proton-mcp/dist/index.js"],
       "env": {
-        "PROTON_CALENDARS": "[{\"name\":\"Family\",\"url\":\"https://calendar.proton.me/api/calendar/v1/url/...\"},{\"name\":\"Work\",\"url\":\"https://calendar.proton.me/api/calendar/v1/url/...\"}]"
+        "PROTON_CALENDARS": "[{\"name\":\"Family\",\"url\":\"https://calendar.proton.me/api/calendar/v1/url/...\"},{\"name\":\"Work\",\"url\":\"https://calendar.proton.me/api/calendar/v1/url/...\"}]",
+        "IMAP_USERNAME": "you@proton.me",
+        "IMAP_PASSWORD": "your-bridge-generated-password"
       }
     }
   }
@@ -42,9 +55,48 @@ Add the following, replacing the path and calendar URLs:
 
 Use the full absolute path to the `dist/index.js` file in the cloned repo.
 
-### 4. Restart Claude Desktop
+### 5. Restart Claude Desktop
 
 Fully quit and relaunch Claude Desktop. The `proton-mcp` server will connect automatically on startup.
+
+---
+
+## Email configuration reference
+
+The IMAP defaults are pre-configured for Proton Bridge. You only need `IMAP_USERNAME` and `IMAP_PASSWORD` for a standard Proton Bridge setup. All other settings have working defaults.
+
+| Variable | Default | Description |
+|---|---|---|
+| `IMAP_USERNAME` | *(required)* | Your mail account username / email address |
+| `IMAP_PASSWORD` | *(required)* | Your password (for Proton Bridge: use the Bridge-generated password, not your Proton account password) |
+| `IMAP_HOST` | `127.0.0.1` | IMAP server hostname |
+| `IMAP_PORT` | `1143` | IMAP server port |
+| `IMAP_SECURITY` | `STARTTLS` | Connection security: `STARTTLS`, `TLS`, or `NONE` |
+| `IMAP_REJECT_UNAUTHORIZED` | `false` | Set to `true` to enforce TLS certificate validation (Proton Bridge uses a self-signed local cert, so this must stay `false` for Bridge) |
+
+### Using with another IMAP provider
+
+To connect to a standard IMAP server instead of Proton Bridge, override the defaults:
+
+```json
+"env": {
+  "IMAP_USERNAME": "you@example.com",
+  "IMAP_PASSWORD": "your-password",
+  "IMAP_HOST": "imap.example.com",
+  "IMAP_PORT": "993",
+  "IMAP_SECURITY": "TLS",
+  "IMAP_REJECT_UNAUTHORIZED": "true"
+}
+```
+
+Common provider settings:
+
+| Provider | Host | Port | Security |
+|---|---|---|---|
+| Gmail | `imap.gmail.com` | `993` | `TLS` |
+| Outlook / Hotmail | `outlook.office365.com` | `993` | `TLS` |
+| Fastmail | `imap.fastmail.com` | `993` | `TLS` |
+| Proton Bridge (local) | `127.0.0.1` | `1143` | `STARTTLS` *(default)* |
 
 ---
 
@@ -74,7 +126,9 @@ Open LM Studio, go to the **Program** tab in the right sidebar, and click **Edit
       "command": "node",
       "args": ["/Full/path/to/project/proton-mcp/dist/index.js"],
       "env": {
-        "PROTON_CALENDARS": "[{\"name\":\"Family\",\"url\":\"https://calendar.proton.me/api/calendar/v1/url/...\"},{\"name\":\"Work\",\"url\":\"https://calendar.proton.me/api/calendar/v1/url/...\"}]"
+        "PROTON_CALENDARS": "[{\"name\":\"Family\",\"url\":\"https://calendar.proton.me/api/calendar/v1/url/...\"},{\"name\":\"Work\",\"url\":\"https://calendar.proton.me/api/calendar/v1/url/...\"}]",
+        "IMAP_USERNAME": "you@proton.me",
+        "IMAP_PASSWORD": "your-bridge-generated-password"
       }
     }
   }
@@ -96,11 +150,24 @@ LM Studio auto-reloads `mcp.json` on save. The file lives at:
 
 ## Usage
 
+### Calendar
+
 Ask things like:
 
 - *"What calendars do I have?"*
 - *"What's on my Work calendar this week?"*
 - *"Show me all Family events for the next two weeks"*
+
+### Email
+
+Ask things like:
+
+- *"What emails did I receive today?"*
+- *"Show me unread messages in my inbox"*
+- *"Find emails from alice@example.com this week"*
+- *"Read the full content of that last email"*
+
+---
 
 ## Calendar env var formats
 
