@@ -68,19 +68,35 @@ class ReadMailTool extends MCPTool<ReadMailInput> {
       description: "Filter messages by subject (partial match).",
     },
     unread_only: {
-      type: z.boolean().optional(),
+      // Claude sometimes sends booleans as strings ("true"/"false"); preprocess handles both.
+      type: z.preprocess(
+        (v) => (v === "" || v === undefined || v === null ? undefined : v === "true" || v === true),
+        z.boolean().optional()
+      ),
       description: "If true, only return unread (unseen) messages. Defaults to false.",
     },
     limit: {
-      type: z.number().optional(),
+      // Claude sometimes sends numbers as strings ("20"); preprocess handles both.
+      type: z.preprocess(
+        (v) => (v === "" || v === undefined || v === null ? undefined : Number(v)),
+        z.number().optional()
+      ),
       description: `Maximum number of messages to return (1–${MAX_LIMIT}). Defaults to ${DEFAULT_LIMIT}. Returns most recent first.`,
     },
     uid: {
-      type: z.number().optional(),
+      // Claude sometimes sends numbers as strings; preprocess handles both.
+      type: z.preprocess(
+        (v) => (v === "" || v === undefined || v === null ? undefined : Number(v)),
+        z.number().optional()
+      ),
       description: "IMAP UID of the message to fetch. Required for get_message.",
     },
     include_body: {
-      type: z.boolean().optional(),
+      // Claude sometimes sends booleans as strings; preprocess handles both.
+      type: z.preprocess(
+        (v) => (v === "" || v === undefined || v === null ? undefined : v === "true" || v === true),
+        z.boolean().optional()
+      ),
       description:
         "If true, include the message body in the response. Defaults to false (headers only). " +
         `Body is truncated at ${BODY_MAX_BYTES.toLocaleString()} bytes.`,
