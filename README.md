@@ -74,6 +74,19 @@ The IMAP defaults are pre-configured for Proton Bridge. You only need `IMAP_USER
 | `IMAP_SECURITY` | `STARTTLS` | Connection security: `STARTTLS`, `TLS`, or `NONE` |
 | `IMAP_REJECT_UNAUTHORIZED` | `false` | Set to `true` to enforce TLS certificate validation (Proton Bridge uses a self-signed local cert, so this must stay `false` for Bridge) |
 
+### SMTP configuration (for sending email)
+
+SMTP uses the same credentials as IMAP by default — `IMAP_USERNAME` and `IMAP_PASSWORD` are automatically reused, so no extra config is needed for Proton Bridge. You can override with dedicated SMTP vars if needed:
+
+| Variable | Default | Description |
+|---|---|---|
+| `SMTP_USERNAME` | *(falls back to `IMAP_USERNAME`)* | SMTP username |
+| `SMTP_PASSWORD` | *(falls back to `IMAP_PASSWORD`)* | SMTP password |
+| `SMTP_HOST` | `127.0.0.1` | SMTP server hostname |
+| `SMTP_PORT` | `1025` | SMTP server port |
+| `SMTP_SECURITY` | `STARTTLS` | Connection security: `STARTTLS`, `TLS`, or `NONE` |
+| `SMTP_REJECT_UNAUTHORIZED` | `false` | Set to `true` to enforce TLS certificate validation |
+
 ### Using with another IMAP provider
 
 To connect to a standard IMAP server instead of Proton Bridge, override the defaults:
@@ -166,6 +179,56 @@ Ask things like:
 - *"Show me unread messages in my inbox"*
 - *"Find emails from alice@example.com this week"*
 - *"Read the full content of that last email"*
+- *"Send an email to bob@example.com with the subject 'Hello'"*
+- *"Move that email to my Archive folder"*
+- *"Delete that message"*
+
+---
+
+## Tools reference
+
+### `list_calendars` / `get_events` (via `calendar` tool)
+
+| Action | Required params | Optional params |
+|---|---|---|
+| `list_calendars` | — | — |
+| `get_events` | `calendar_name` | `start_date`, `end_date` (ISO 8601) |
+
+### `read_mail`
+
+| Action | Required params | Optional params |
+|---|---|---|
+| `list_folders` | — | — |
+| `list_messages` | — | `folder`, `since`, `before`, `from`, `subject`, `unread_only`, `limit` |
+| `get_message` | `uid` | `folder`, `include_body` |
+
+### `send_mail`
+
+| Param | Required | Description |
+|---|---|---|
+| `to` | yes | Recipient(s), comma-separated |
+| `subject` | yes | Subject line |
+| `body` | yes | Plain-text body |
+| `cc` | no | CC recipient(s) |
+| `bcc` | no | BCC recipient(s) |
+| `reply_to` | no | Reply-To address |
+
+### `move_mail`
+
+| Param | Required | Description |
+|---|---|---|
+| `uid` | yes | IMAP UID of the message (use `read_mail` → `list_messages` to find UIDs) |
+| `destination` | yes | Destination folder path (use `read_mail` → `list_folders` to see options) |
+| `folder` | no | Source folder, defaults to `INBOX` |
+
+### `delete_mail`
+
+Permanently deletes a message — this cannot be undone.
+
+| Param | Required | Description |
+|---|---|---|
+| `uid` | yes | IMAP UID of the message to delete |
+| `folder` | no | Folder containing the message, defaults to `INBOX` |
 
 ---
 
